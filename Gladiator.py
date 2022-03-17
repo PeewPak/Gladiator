@@ -21,7 +21,7 @@ enemy_vel = [glad_vel/2, glad_vel]
 #User evnts
 hero_get_hit = pygame.USEREVENT + 1
 enemy_get_hit = pygame.USEREVENT + 2
-round_start = pygame.USEREVENT + 3
+round_prepare = pygame.USEREVENT + 3
 round_end = pygame.USEREVENT + 4
 
 winner_font = pygame.font.SysFont("comicsans", 100)
@@ -66,19 +66,36 @@ class enemy(object):
         #win.blit(enemy_sword, (Gate[0], Gate[1]-(glad_height)/2))
 
     def move(self, opponent, preparation):
-        
-        if opponent.posx != opponent.startposx and opponent.posy != opponent.startposy:
-            if opponent.posx > opponent.startposx:
-                opponent.posx -= opponent.vel
-            if opponent.posx < opponent.startposx:
-                opponent.posx += opponent.vel 
 
-            if opponent.posy < opponent.startposy:
-                opponent.posy += opponent.vel
-            if opponent.posy > opponent.startposy:
-                opponent.posy -= opponent.vel
-        else:
-            preparation = False
+        print("Possition X: ", opponent.posx, "    Starting point: ", opponent.startposx)    
+        print("Possition Y: ", opponent.posy, "    Starting point: ", opponent.startposy) 
+        
+        #if opponent.posx != opponent.startposx and opponent.posy != opponent.startposy:
+        if opponent.posx > opponent.startposx:
+            if opponent.posx - opponent.vel > opponent.startposx:
+                    opponent.posx -= opponent.vel
+            elif opponent.posx - opponent.vel <= opponent.startposx:
+                    opponent.posx = opponent.startposx
+        elif opponent.posx < opponent.startposx:
+            if opponent.posx + opponent.vel < opponent.startposx:
+                    opponent.posx += opponent.vel
+            elif opponent.posx + opponent.vel >= opponent.startposx:
+                    opponent.posx = opponent.startposx
+
+            
+
+        if opponent.posy < opponent.startposy:
+            if opponent.posy + opponent.vel < opponent.startposy:
+                    opponent.posy += opponent.vel
+            elif opponent.posy + opponent.vel >= opponent.startposy:
+                    opponent.posy = opponent.startposy
+        elif opponent.posy > opponent.startposy:
+            if opponent.posy - opponent.vel > opponent.startposy:
+                    opponent.posy -= opponent.vel
+            elif opponent.posy - opponent.vel <= opponent.startposy:
+                    opponent.posy = opponent.startposy
+
+        #print("Preparation =  ", preparation)
     
     def chase(self, hero, opponent):
         diffx, diffy = (self.posx - hero.x, self.posy - hero.y)
@@ -92,14 +109,15 @@ def draw_looser(text):
     pygame.display.update()
     pygame.time.delay(5000)
 
-def draw_round(text):
+def draw_round(text, number):
     draw_text = winner_font.render(text, 1, (0, 0, 0))
-    win.blit(draw_text, (width/2 - draw_text.get_width()/2, height/2 - draw_text.get_height()/2))
+    draw_number = winner_font.render(number, 1, (0, 0, 0))
+    win.blit(draw_text, (width/2 - draw_text.get_width()/2 - draw_number.get_width(), height/2 - draw_text.get_height()/2))
+    win.blit(draw_number, (width/2 + draw_text.get_width()/2, height/2 - draw_text.get_height()/2))
     pygame.display.update()
 
-def draw_window(hero, hero_health_bar, health_bar, opponent):
+def draw_window(hero, hero_health_bar, health_bar, opponent, round_num, preparation):
     win.blit(background, (0,0))
-
     if len(opponent) != 0:
         for i in range(len(opponent)):
             win.blit(enemy_sword, (opponent[i].posx, opponent[i].posy))
@@ -108,6 +126,9 @@ def draw_window(hero, hero_health_bar, health_bar, opponent):
     pygame.draw.rect(win, (0, 0, 0), health_bar, 2)     #Draw Health Bar
     for OneHP in hero_health_bar:                       #Draw HPs
         pygame.draw.rect(win, (255, 0, 0), OneHP)
+
+    if preparation == True:
+        draw_round("Round", str(round_num))
 
     #point = pygame.draw.circle(win, (255,0,0), [150, 470], 2)
     pygame.display.update()
@@ -174,7 +195,7 @@ def main():
     hero_health_bar = []
     current_HP = hero_MaxHP
     preparation = False
-    round_num = 5
+    round_num = 7
 
     clock = pygame.time.Clock()
     run = True
@@ -190,12 +211,8 @@ def main():
                     pygame.event.post(pygame.event.Event(hero_get_hit))
 
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_p:
-                    preparation = True
-
-            if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
-                    pygame.event.post(pygame.event.Event(round_start))
+                    pygame.event.post(pygame.event.Event(round_prepare))
 
             if event.type == hero_get_hit:
                 current_HP -= 1
@@ -207,7 +224,7 @@ def main():
                         draw_window(hero, hero_health_bar, health_bar, opponent)
                 #print("Current HP: ", current_HP)
         
-            if event.type == round_start:
+            if event.type == round_prepare:
                 round_num += 1
                 if round_num % 2 == 0:
                     for i in range(int(round_num/2)):
@@ -231,19 +248,30 @@ def main():
                             enemy_model = pygame.Rect(Gate[0], Gate[1], glad_width, glad_height)
                             opponent.append(enemy_model)
                             opponent [i] = enemy(enemy_model.x, enemy_model.y, glad_width, glad_height, enemy_MaxHP, enemy_damage, enemy_vel[1])
+                print("Set preparation to True")
+                preparation = True
         
         if current_HP == 0:
             looser_text = "You lost, bitch!"
             draw_looser(looser_text)
             break                 
 
-        if preparation == True:       
+        if preparation == True:
+            ready = 0
             for i in range(len(opponent)):
-                opponent[i].move(opponent[i], preparation)  
+                if opponent[i].posx != opponent[i].startposx or opponent[i].posy != opponent[i].startposy:
+                    opponent[i].move(opponent[i], preparation)
+                elif opponent[i].posx == opponent[i].startposx and opponent[i].posy == opponent[i].startposy:
+                    ready += 1
+                    print("Ready: ", ready)
+
+                if ready == len(opponent):
+                    print("Ready")
+                    preparation = False
 
         character_movement(hero)
         health(hero, hero_health_bar, health_bar, current_HP)
-        draw_window(hero, hero_health_bar, health_bar, opponent)
+        draw_window(hero, hero_health_bar, health_bar, opponent, round_num, preparation)
 
 
 main()
